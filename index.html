@@ -39,9 +39,9 @@
         }
         /* Encabezado fijo y adaptable */
         .app-header { background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 30; backdrop-filter: blur(10px); background: rgba(255,255,255,.95); }
-        .brand-logo { height: 34px; width: auto; display: block; object-fit: contain; }
+        .brand-logo { height: 40px; width: auto; display: block; object-fit: contain; }
         
-        /* Navegación por pestañas totalmente responsiva */
+        /* Navegación por pestañas */
         .nav-btn {
             padding: 0.5rem 0.9rem;
             font-size: 0.8125rem;
@@ -55,8 +55,8 @@
         }
         .nav-btn i { color: var(--ink-faint); transition: color .15s ease; }
         .nav-btn:hover { color: var(--ink); background: #F3F3F0; }
-        .nav-btn.nav-active { background: var(--ink); color: #fff; }
-        .nav-btn.nav-active i { color: var(--gold-light); }
+        .nav-btn.nav-active { background: var(--gold-tint); color: var(--gold-dark); font-weight: 600; border: 1px solid var(--gold); }
+        .nav-btn.nav-active i { color: var(--gold); }
 
         /* Tarjetas */
         .card {
@@ -883,11 +883,12 @@
                 <h2 style="color:#3A3A3C;">Historial y Reportes de Servicio HVAC</h2>
                 <table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;font-size:12px;">
                     <tr style="background:#F3F3F0;">
-                        <th>Fecha</th><th>Ubicación</th><th>Partes Asignadas (Part Number)</th><th>Técnico</th><th>Acción</th><th>Hallazgos</th><th>Comentarios</th>
+                        <th>Fecha</th><th>Ubicación</th><th>Partes Asignadas (Part Number)</th><th>Técnico</th><th>Acción</th><th>Hallazgos</th><th>Firma</th>
                     </tr>`;
             
             serviceLogs.forEach(l => {
                 let partsStr = (l.parts && l.parts.length > 0) ? l.parts.map(p => `${p.partName} [${p.partNumber}]`).join('; ') : 'Sin piezas asignadas';
+                let sigImg = l.signature ? `<img src="${l.signature}" width="100" height="40"/>` : 'Sin firma';
                 htmlContent += `<tr>
                     <td>${l.date}</td>
                     <td>${l.location}</td>
@@ -895,7 +896,7 @@
                     <td>${l.technician}</td>
                     <td>${l.actionDescription}</td>
                     <td>${l.findings}</td>
-                    <td>${l.comments || ''}</td>
+                    <td>${sigImg}</td>
                 </tr>`;
             });
             htmlContent += `</table></body></html>`;
@@ -922,7 +923,8 @@
                 Tecnico: l.technician,
                 Accion: l.actionDescription,
                 Hallazgos: l.findings,
-                Comentarios: l.comments || ''
+                Comentarios: l.comments || '',
+                Firma_Registrada: l.signature ? 'Sí' : 'No'
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -943,24 +945,57 @@
             doc.setTextColor(58, 58, 60);
             doc.text("Historial de Servicio HVAC", 14, 20);
 
-            const tableData = serviceLogs.map(l => [
-                l.date,
-                l.location,
-                (l.parts && l.parts.length > 0) ? l.parts.map(p => `${p.partName} (${p.partNumber})`).join('\n') : 'Sin piezas asignadas',
-                l.technician,
-                l.actionDescription,
-                l.findings
-            ]);
+            let rowData = [];
+            let promises = serviceLogs.map((l, index) => {
+                let partsStr = (l.parts && l.parts.length > 0) ? l.parts.map(p => `${p.partName} (${p.partNumber})`).join('\n') : 'Sin piezas';
+                return new Promise((resolve) => {
+                    let baseRow = [
+                        l.date,
+                        l.location,
+                        partsStr,
+                        l.technician,
+                        l.actionDescription,
+                        l.findings
+                    ];
 
-            doc.autoTable({
-                startY: 25,
-                head: [['Fecha', 'Ubicación', 'Partes Asignadas (Part Number)', 'Técnico', 'Acción', 'Hallazgos']],
-                body: tableData,
-                styles: { fontSize: 9 },
-                headStyles: { fillColor: [58, 58, 60], textColor: [226, 184, 79] }
+                    if (l.signature) {
+                        let img = new Image();
+                        img.src = l.signature;
+                        img.onload = () => {
+                            resolve({ index, row: baseRow, img });
+                        };
+                        img.onerror = () => {
+                            resolve({ index, row: baseRow, img: null });
+                        };
+                    } else {
+                        resolve({ index, row: baseRow, img: null });
+                    }
+                });
             });
 
-            doc.save("historial_servicio_hvac.pdf");
+            Promise.all(promises).then((results) => {
+                results.sort((a, b) => a.index - b.index);
+                let bodyData = results.map(r => [...r.row, '']);
+
+                doc.autoTable({
+                    startY: 25,
+                    head: [['Fecha', 'Ubicación', 'Partes Asignadas', 'Técnico', 'Acción', 'Hallazgos', 'Firma']],
+                    body: bodyData,
+                    styles: { fontSize: 8, valign: 'middle' },
+                    headStyles: { fillColor: [58, 58, 60], textColor: [226, 184, 79] },
+                    didDrawCell: function (data) {
+                        if (data.section === 'body' && data.column.index === 6) {
+                            let item = results[data.row.index];
+                            if (item && item.img) {
+                                let dim = data.cell;
+                                doc.addImage(item.img, 'PNG', dim.x + 2, dim.y + 2, dim.width - 4, dim.height - 4);
+                            }
+                        }
+                    }
+                });
+
+                doc.save("historial_servicio_hvac.pdf");
+            });
         }
 
         function openAddPartModal() { document.getElementById('part-modal').classList.remove('hidden'); }

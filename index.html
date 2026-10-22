@@ -173,7 +173,7 @@
         .download-select {
             appearance: none; -webkit-appearance: none;
             background: var(--ink); color: #fff;
-            padding: 0.6rem 2.6rem 0.6rem 2.2rem; font-size: 0.8125rem; font-weight: 500;
+            padding: 0.6rem 2.6rem 0.6rem 2.4rem; font-size: 0.8125rem; font-weight: 500;
             border-radius: 0.6rem; cursor: pointer; border: none;
             transition: background-color .15s ease; width: 100%;
         }
@@ -185,7 +185,7 @@
         .download-select option { color: #2A2A2C; background: #fff; }
         
         .download-icon-left {
-            position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%);
+            position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
             color: var(--gold-light); pointer-events: none; font-size: 0.85rem;
         }
         .download-arrow-right {
@@ -226,7 +226,7 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
-    <!-- Encabezado responsivo con el logotipo oficial de Inter Ponce -->
+    <!-- Encabezado responsivo con el logotipo oficial -->
     <header class="app-header">
         <div class="gold-line"></div>
         <div class="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
@@ -378,7 +378,7 @@
                     <div class="download-select-container">
                         <i class="fa-solid fa-download download-icon-left"></i>
                         <select onchange="handleDownload(this)" class="download-select">
-                            <option value="" disabled selected>Descargar<i class="fa fa-download" aria-hidden="true"></i></option>
+                            <option value="" disabled selected>Descargar</option>
                             <option value="word">Word (.doc)</option>
                             <option value="excel">Excel (.xlsx)</option>
                             <option value="pdf">PDF (.pdf)</option>
@@ -939,53 +939,53 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            Doc.setFontSize(16);
-            Doc.setTextColor(58, 58, 60);
-            Doc.text("Historial de Servicio HVAC", 14, 20);
+            doc.setFontSize(16);
+            doc.setTextColor(58, 58, 60);
+            doc.text("Historial de Servicio HVAC", 14, 20);
 
-            Const tableData = serviceLogs.map(l => [
-                L.date,
-                L.location,
+            const tableData = serviceLogs.map(l => [
+                l.date,
+                l.location,
                 (l.parts && l.parts.length > 0) ? l.parts.map(p => `${p.partName} (${p.partNumber})`).join('\n') : 'Sin piezas asignadas',
-                L.technician,
-                L.actionDescription,
-                L.findings
+                l.technician,
+                l.actionDescription,
+                l.findings
             ]);
 
-            Doc.autoTable({
-                StartY: 25,
-                Head: [['Fecha', 'Ubicación', 'Partes Asignadas (Part Number)', 'Técnico', 'Acción', 'Hallazgos']],
-                Body: tableData,
-                Styles: { fontSize: 9 },
-                HeadStyles: { fillColor: [58, 58, 60], textColor: [226, 184, 79] }
+            doc.autoTable({
+                startY: 25,
+                head: [['Fecha', 'Ubicación', 'Partes Asignadas (Part Number)', 'Técnico', 'Acción', 'Hallazgos']],
+                body: tableData,
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [58, 58, 60], textColor: [226, 184, 79] }
             });
 
-            Doc.save("historial_servicio_hvac.pdf");
+            doc.save("historial_servicio_hvac.pdf");
         }
 
-        Function openAddPartModal() { document.getElementById('part-modal').classList.remove('hidden'); }
-        Function closeAddPartModal() { document.getElementById('part-modal').classList.add('hidden'); }
+        function openAddPartModal() { document.getElementById('part-modal').classList.remove('hidden'); }
+        function closeAddPartModal() { document.getElementById('part-modal').classList.add('hidden'); }
 
-        Async function saveNewPart(e) {
-            E.preventDefault();
-            Const newPart = {
-                Part_number: document.getElementById('new-partnumber').value,
-                Part_name: document.getElementById('new-name').value,
-                Category: document.getElementById('new-category').value,
-                Stock_quantity: parseInt(document.getElementById('new-stock').value),
-                Location: document.getElementById('new-location').value
+        async function saveNewPart(e) {
+            e.preventDefault();
+            const newPart = {
+                part_number: document.getElementById('new-partnumber').value,
+                part_name: document.getElementById('new-name').value,
+                category: document.getElementById('new-category').value,
+                stock_quantity: parseInt(document.getElementById('new-stock').value),
+                location: document.getElementById('new-location').value
             };
 
-            Const { error } = await cloudClient.from('inventory').insert([newPart]);
-            If (error) {
-                Alert('Error al agregar pieza: ' + error.message);
-                Return;
+            const { error } = await cloudClient.from('inventory').insert([newPart]);
+            if (error) {
+                alert('Error al agregar pieza: ' + error.message);
+                return;
             }
 
-            CloseAddPartModal();
-            Await fetchInventory();
-            Document.getElementById('new-part-form').reset();
-            Alert('¡Nueva pieza agregada al inventario!');
+            closeAddPartModal();
+            await fetchInventory();
+            document.getElementById('new-part-form').reset();
+            alert('¡Nueva pieza agregada al inventario!');
         }
     </script>
 </body>

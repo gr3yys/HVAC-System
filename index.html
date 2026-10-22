@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Inventario y Registro de Servicio HVAC</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase Client -->
+    <!-- Cliente de Base de Datos en la Nube -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- HTML5-QRCode Scanner Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     <!-- SheetJS (xlsx) para descarga en Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- jsPDF y plugin autoTable para descarga en PDF -->
@@ -17,7 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Sistema de diseño DECAD: carbón + dorado, minimalista -->
+    <!-- Sistema de diseño DECAD: carbón + dorado, minimalista y responsivo -->
     <style>
         :root {
             --ink: #3A3A3C;
@@ -39,31 +37,41 @@
             background: var(--paper);
             color: var(--ink);
         }
-        /* Encabezado */
-        .app-header { background: var(--card); border-bottom: 1px solid var(--line); }
-        .brand-title { color: var(--ink); letter-spacing: -0.01em; }
-        .brand-sub { color: var(--ink-faint); }
-        /* Navegación por pestañas */
+        /* Encabezado fijo y adaptable */
+        .app-header { background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 30; backdrop-filter: blur(10px); background: rgba(255,255,255,.95); }
+        
+        /* Navegación por pestañas totalmente responsiva */
         .nav-btn {
-            padding: 0.6rem 0.9rem;
+            padding: 0.5rem 0.9rem;
             font-size: 0.8125rem;
             font-weight: 500;
             color: var(--ink-soft);
-            border-bottom: 2px solid transparent;
+            border-radius: 999px;
             display: flex; align-items: center; gap: 0.5rem;
-            transition: color .15s ease, border-color .15s ease;
+            transition: all .15s ease;
             background: transparent;
+            white-space: nowrap;
         }
         .nav-btn i { color: var(--ink-faint); transition: color .15s ease; }
-        .nav-btn:hover { color: var(--ink); }
-        .nav-btn.nav-active { color: var(--ink); border-bottom-color: var(--gold); }
-        .nav-btn.nav-active i { color: var(--gold); }
+        .nav-btn:hover { color: var(--ink); background: #F3F3F0; }
+        .nav-btn.nav-active { background: var(--ink); color: #fff; }
+        .nav-btn.nav-active i { color: var(--gold-light); }
+
         /* Tarjetas */
         .card {
             background: var(--card);
             border: 1px solid var(--line);
             border-radius: 1rem;
-            padding: 1.75rem;
+            padding: 1.5rem;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(58,58,60,.03), 0 8px 24px rgba(58,58,60,.04);
+        }
+        @media (min-width: 640px) {
+            .card { padding: 1.75rem; }
+        }
+        .card::before {
+            content: ""; position: absolute; left: 1.75rem; top: -1px; width: 3.5rem; height: 3px;
+            background: var(--gold-grad); border-radius: 0 0 3px 3px;
         }
         .card-title {
             display: flex; align-items: center; gap: 0.6rem;
@@ -73,6 +81,7 @@
         .card-title i { color: var(--gold); font-size: 0.95rem; }
         .card-sub { font-size: 0.75rem; color: var(--ink-faint); margin-top: 0.25rem; }
         .divider { border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 1.25rem; }
+
         /* Formularios */
         .label {
             display: block; font-size: 0.6875rem; font-weight: 600;
@@ -92,7 +101,8 @@
             outline: none; border-color: var(--gold);
             box-shadow: 0 0 0 3px rgba(201,146,46,.15);
         }
-        .sig-box { border: 1px solid var(--line-strong); border-radius: 0.6rem; background: var(--paper); position: relative; overflow: hidden; }
+        .sig-box { border: 1px solid var(--line-strong); border-radius: 0.6rem; background: var(--paper); position: relative; overflow: hidden; width: 100%; }
+        
         /* Botones */
         .btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
@@ -100,24 +110,33 @@
             border-radius: 0.6rem; transition: all .15s ease; cursor: pointer;
         }
         .btn-primary { background: var(--gold-grad); color: #2A2A2C; font-weight: 600; }
-        .btn-primary:hover { filter: brightness(1.05); box-shadow: 0 4px 14px rgba(201,146,46,.28); }
+        .btn-primary:hover { filter: brightness(1.05); box-shadow: 0 4px 14px rgba(201,146,46,.28); transform: translateY(-1px); }
         .btn-dark { background: var(--ink); color: #fff; }
         .btn-dark:hover { background: #2A2A2C; }
         .btn-ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line-strong); }
         .btn-ghost:hover { color: var(--ink); border-color: var(--ink-faint); background: var(--paper); }
-        .btn-outline-gold { background: transparent; color: var(--gold-dark); border: 1px solid var(--gold); padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+        .btn-outline-gold { background: transparent; color: var(--gold-dark); border: 1px solid var(--gold); padding: 0.4rem 0.75rem; font-size: 0.75rem; white-space: nowrap; }
         .btn-outline-gold:hover { background: var(--gold-tint); }
         .btn-mini {
             width: 1.75rem; height: 1.75rem; display: inline-flex; align-items: center; justify-content: center;
             font-size: 0.8rem; font-weight: 600; color: var(--ink-soft);
             border: 1px solid var(--line-strong); border-radius: 0.5rem; background: var(--card);
-            transition: all .15s ease;
+            transition: all .15s ease; flex-shrink: 0; cursor: pointer;
         }
         .btn-mini:hover { color: var(--ink); border-color: var(--gold); background: var(--gold-tint); }
-        /* Tablas */
-        .tbl { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.875rem; }
+        .btn-danger-mini {
+            width: 1.75rem; height: 1.75rem; display: inline-flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; font-weight: 600; color: #ef4444;
+            border: 1px solid #fecaca; border-radius: 0.5rem; background: #fef2f2;
+            transition: all .15s ease; flex-shrink: 0; cursor: pointer;
+        }
+        .btn-danger-mini:hover { background: #fee2e2; border-color: #ef4444; }
+
+        /* Tablas responsivas */
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .tbl { width: 100%; text-align: left; border-collapse: collapse; font-size: 0.875rem; min-width: 650px; }
         .tbl thead th {
-            padding: 0.75rem 0.75rem; font-size: 0.6875rem; font-weight: 600;
+            padding: 0.75rem; font-size: 0.6875rem; font-weight: 600;
             text-transform: uppercase; letter-spacing: 0.08em;
             color: var(--ink-faint); border-bottom: 1px solid var(--line-strong);
             background: transparent;
@@ -125,19 +144,22 @@
         .tbl tbody tr { border-bottom: 1px solid var(--line); transition: background .12s ease; }
         .tbl tbody tr:hover { background: var(--paper); }
         .tbl tbody tr:last-child { border-bottom: none; }
+
         /* Etiquetas */
         .tag { display: inline-block; padding: 0.2rem 0.65rem; border-radius: 999px; font-size: 0.72rem; font-weight: 500; }
         .tag-neutral { background: #F3F3F0; color: var(--ink-soft); }
         .tag-gold { background: var(--gold-tint); color: var(--gold-dark); }
         .part-no { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.75rem; font-weight: 600; color: var(--gold-dark); }
+
         /* Modales */
-        .modal-backdrop { background: rgba(58,58,60,.45); backdrop-filter: blur(6px); z-index: 50; }
+        .modal-backdrop { background: rgba(58,58,60,.45); backdrop-filter: blur(6px); z-index: 50; padding: 1rem; }
         .modal-card {
             background: var(--card); border-radius: 1rem; padding: 1.75rem;
             width: 100%; max-width: 28rem; border: 1px solid var(--line);
             box-shadow: 0 20px 50px rgba(0,0,0,.12);
         }
         .modal-title { font-size: 1.0625rem; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; margin-bottom: 1rem; }
+
         /* Selector de descarga */
         .download-select {
             appearance: none; -webkit-appearance: none;
@@ -146,20 +168,18 @@
             border-radius: 0.6rem; cursor: pointer; border: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23E2B84F' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
             background-repeat: no-repeat; background-position: right 0.8rem center;
-            transition: background-color .15s ease;
+            transition: background-color .15s ease; width: 100%;
+        }
+        @media (min-width: 640px) {
+            .download-select { width: auto; }
         }
         .download-select:hover { background-color: #2A2A2C; }
         .download-select:focus { outline: none; box-shadow: 0 0 0 3px rgba(201,146,46,.25); }
         .download-select option { color: #2A2A2C; background: #fff; }
         .empty-row { color: var(--ink-faint); font-style: italic; }
         .gold-line { height: 2px; background: var(--gold-grad); }
-        /* ---- Capa creativa ---- */
-        .app-header { position: sticky; top: 0; z-index: 30; backdrop-filter: blur(10px); background: rgba(255,255,255,.92); }
-        .brand-logo { height: 34px; width: auto; display: block; }
-        .nav-btn { border-radius: 999px; border-bottom: none; padding: 0.5rem 1rem; margin-bottom: 0.9rem; }
-        .nav-btn.nav-active { background: var(--ink); color: #fff; }
-        .nav-btn.nav-active i { color: var(--gold-light); }
-        .nav-btn:not(.nav-active):hover { background: #F3F3F0; }
+
+        /* Hero banner */
         .hero {
             position: relative; overflow: hidden; color: #fff;
             background: radial-gradient(1200px 400px at 85% -20%, rgba(226,184,79,.22), transparent 60%),
@@ -172,13 +192,8 @@
                 linear-gradient(115deg, transparent 0 66%, rgba(226,184,79,.20) 66.2%, transparent 66.5%),
                 linear-gradient(115deg, transparent 0 70%, rgba(226,184,79,.12) 70.2%, transparent 70.4%);
         }
-        .hero::after {
-            content: "D"; position: absolute; right: 4%; bottom: -38%;
-            font-weight: 800; font-size: 20rem; line-height: 1; letter-spacing: -0.05em;
-            color: transparent; -webkit-text-stroke: 1.5px rgba(226,184,79,.22); pointer-events: none;
-        }
         .hero-eyebrow { font-size: 0.6875rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold-light); font-weight: 600; }
-        .hero-title { font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+        .hero-title { font-size: clamp(1.4rem, 3vw, 2.25rem); font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
         .hero-title span { background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
         .hero-sub { color: #B8B8BC; font-size: 0.875rem; }
         .hero-chip {
@@ -187,27 +202,21 @@
             border: 1px solid rgba(226,184,79,.35); border-radius: 999px; background: rgba(255,255,255,.04);
         }
         .hero-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold-light); box-shadow: 0 0 8px var(--gold-light); }
-        .card { position: relative; box-shadow: 0 1px 2px rgba(58,58,60,.03), 0 8px 24px rgba(58,58,60,.04); }
-        .card::before {
-            content: ""; position: absolute; left: 1.75rem; top: -1px; width: 3.5rem; height: 3px;
-            background: var(--gold-grad); border-radius: 0 0 3px 3px;
-        }
         main section { animation: rise .35s ease both; }
         @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-        .btn-primary:hover { transform: translateY(-1px); }
         .app-footer { border-top: 1px solid var(--line); background: var(--card); }
         .footer-quote { color: var(--gold-dark); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
-    <!-- Encabezado -->
+    <!-- Encabezado responsivo -->
     <header class="app-header">
         <div class="gold-line"></div>
-        <div class="max-w-7xl mx-auto px-4 pt-5 pb-0 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div class="flex items-center pb-3 sm:pb-4">
-                <span class="text-xl font-bold tracking-wide" style="color:var(--ink);">DECAD HVAC Portal</span>
+        <div class="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
+            <div class="flex items-center justify-between w-full sm:w-auto">
+                <span class="text-lg sm:text-xl font-bold tracking-wide" style="color:var(--ink);">DECAD HVAC Portal</span>
             </div>
-            <nav class="flex flex-wrap justify-center gap-1">
+            <nav class="flex flex-wrap justify-center gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
                 <button onclick="switchTab('scanner')" id="btn-scanner" class="nav-btn">
                     <i class="fa-solid fa-file-pen"></i> Registrar Servicio
                 </button>
@@ -223,7 +232,7 @@
 
     <!-- Banda principal -->
     <section class="hero">
-        <div class="max-w-7xl mx-auto px-4 sm:px-8 py-9 relative z-10 flex flex-col gap-3">
+        <div class="max-w-7xl mx-auto px-4 sm:px-8 py-7 sm:py-9 relative z-10 flex flex-col gap-2 sm:gap-3">
             <p class="hero-eyebrow">UIPR &middot; Recinto de Ponce</p>
             <h1 class="hero-title">Portal de Partes y <span>Servicio HVAC</span></h1>
             <div class="pt-1"><span class="hero-chip"><span class="dot"></span> Transformando el presente, creando el futuro</span></div>
@@ -231,18 +240,18 @@
     </section>
 
     <!-- Contenedor Principal -->
-    <main class="flex-grow max-w-7xl w-full mx-auto p-4 sm:p-8">
+    <main class="flex-grow max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8">
 
-        <!-- PESTAÑA 1: FORMULARIO DE REGISTRO (TÉCNICO) CON CAMPO DE UBICACIÓN -->
+        <!-- PESTAÑA 1: FORMULARIO DE REGISTRO (TÉCNICO) -->
         <section id="tab-scanner" class="space-y-6 max-w-4xl mx-auto">
             <div class="card">
                 <h2 class="card-title divider">
                     <i class="fa-solid fa-file-pen"></i> Nuevo Registro de Servicio Técnico
                 </h2>
                 
-                <form id="service-form" onsubmit="submitServiceLog(event)" class="space-y-5">
+                <form id="service-form" onsubmit="submitServiceLog(event)" class="space-y-4 sm:space-y-5">
                     
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <div>
                             <label class="label">Nombre del Técnico *</label>
                             <input type="text" id="tech-name" required placeholder="Nombre Completo" class="field">
@@ -290,71 +299,51 @@
                     <div>
                         <label class="label">Firma del Técnico *</label>
                         <div class="sig-box">
-                            <canvas id="sig-canvas" class="w-full h-36 cursor-crosshair touch-none"></canvas>
+                            <canvas id="sig-canvas" class="w-full h-32 sm:h-36 cursor-crosshair touch-none"></canvas>
                             <div class="absolute bottom-2 right-2 flex gap-2">
                                 <button type="button" onclick="clearSignature()" class="btn btn-ghost" style="padding:0.3rem 0.75rem;font-size:0.75rem;background:#fff;">Borrar</button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="pt-2 flex justify-end gap-3">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fa-solid fa-floppy-disk"></i> Guardar Registro en Supabase
+                    <div class="pt-2 flex justify-end">
+                        <button type="submit" class="btn btn-primary w-full sm:w-auto">
+                            <i class="fa-solid fa-floppy-disk"></i> Guardar Registro
                         </button>
                     </div>
                 </form>
             </div>
         </section>
 
-        <!-- PESTAÑA 2: GESTIÓN DE INVENTARIO CON ESCÁNER DE CÓDIGOS DE BARRAS / QR -->
+        <!-- PESTAÑA 2: GESTIÓN DE INVENTARIO (CON BOTÓN EDITAR Y SIN CAMPOS EDITABLES POR DEFECTO) -->
         <section id="tab-inventory" class="hidden space-y-6">
             <div class="card">
-                <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6">
                     <div>
                         <h2 class="card-title">
-                            <i class="fa-solid fa-boxes-stacked"></i> Catálogo de Inventario
+                            <i class="fa-solid fa-boxes-stacked"></i> Catálogo de Inventario de Piezas
                         </h2>
-                        <p class="card-sub">Panel administrativo: Escanee códigos de barras/QR o asigne partes a los servicios.</p>
+                        <p class="card-sub">Panel administrativo: Haga clic en Editar para modificar los datos de una pieza.</p>
                     </div>
-                    <button onclick="openAddPartModal()" class="btn btn-primary">
+                    <button onclick="openAddPartModal()" class="btn btn-primary w-full sm:w-auto">
                         <i class="fa-solid fa-plus"></i> Agregar Nueva Pieza
                     </button>
                 </div>
 
-                <!-- Sección de Escaneo en Inventario -->
-                <div class="bg-paper p-4 rounded-xl border border-line mb-6 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-semibold text-ink flex items-center gap-2">
-                            <i class="fa-solid fa-camera text-gold"></i> Escáner de Partes (Código de Barras)
-                        </h3>
-                        <button type="button" onclick="toggleInventoryScanner()" id="scanner-toggle-btn" class="btn btn-ghost" style="padding: 0.3rem 0.75rem; font-size: 0.75rem;">
-                            <i class="fa-solid fa-power-off"></i> Activar Cámara
-                        </button>
-                    </div>
-                    <div id="inventory-scanner-container" class="hidden max-w-md mx-auto space-y-3">
-                        <div id="reader" class="rounded-xl overflow-hidden border border-line-strong bg-black"></div>
-                        <p class="text-xs text-center text-ink-soft">Apunte la cámara al código de barras o QR de la pieza para seleccionarla automáticamente.</p>
-                    </div>
-                    <div class="flex gap-2 max-w-md mx-auto">
-                        <input type="text" id="inventory-scan-input" placeholder="Ingrese o escanee Part Number..." class="field" onkeypress="handleScanInput(event)">
-                        <button type="button" onclick="processScannedPart()" class="btn btn-dark">Buscar / Asignar</button>
-                    </div>
-                </div>
-
-                <div class="overflow-x-auto">
+                <div class="table-responsive">
                     <table class="tbl">
                         <thead>
                             <tr>
                                 <th>Part Number</th>
                                 <th>Nombre de la Pieza</th>
                                 <th>Categoría</th>
-                                <th>Stock Disp.</th>
+                                <th>Cantidad Disp.</th>
                                 <th>Ubicación</th>
                                 <th>Acciones Admin</th>
                             </tr>
                         </thead>
                         <tbody id="inventory-table-body">
-                            <!-- Poblado dinámicamente desde Supabase -->
+                            <!-- Poblado dinámicamente -->
                         </tbody>
                     </table>
                 </div>
@@ -364,12 +353,12 @@
         <!-- PESTAÑA 3: HISTORIAL DE REGISTROS DE SERVICIO -->
         <section id="tab-logs" class="hidden space-y-6">
             <div class="card">
-                <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-6">
                     <h2 class="card-title">
-                        <i class="fa-solid fa-clipboard-list"></i> Historial y Reportes de Servicio (Supabase)
+                        <i class="fa-solid fa-clipboard-list"></i> Historial de Servicio
                     </h2>
                     <!-- Dropdown unificado para Descargar -->
-                    <div class="relative inline-block text-left">
+                    <div class="w-full sm:w-auto">
                         <select onchange="handleDownload(this)" class="download-select">
                             <option value="" disabled selected>Descargar...</option>
                             <option value="word">Word (.doc)</option>
@@ -378,7 +367,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="overflow-x-auto">
+                <div class="table-responsive">
                     <table class="tbl">
                         <thead>
                             <tr>
@@ -392,7 +381,7 @@
                             </tr>
                         </thead>
                         <tbody id="logs-table-body">
-                            <!-- Poblado dinámicamente desde Supabase -->
+                            <!-- Poblado dinámicamente -->
                         </tbody>
                     </table>
                 </div>
@@ -402,14 +391,14 @@
     </main>
 
     <footer class="app-footer">
-        <div class="max-w-7xl mx-auto px-4 sm:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div class="max-w-7xl mx-auto px-4 sm:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
             <span class="text-xs font-semibold" style="color:var(--ink);">DECAD HVAC Portal</span>
             <p class="footer-quote">&copy; Desarrollado por: Greychel Ocasio</p>
         </div>
     </footer>
 
     <!-- Modal para Agregar Nueva Pieza al Inventario -->
-    <div id="part-modal" class="fixed inset-0 modal-backdrop hidden flex items-center justify-center p-4">
+    <div id="part-modal" class="fixed inset-0 modal-backdrop hidden flex items-center justify-center p-3 sm:p-4">
         <div class="modal-card">
             <h3 class="modal-title">Agregar Nueva Pieza HVAC</h3>
             <form id="new-part-form" onsubmit="saveNewPart(event)" class="space-y-4">
@@ -432,9 +421,9 @@
                         <option value="Eléctrico">Eléctrico</option>
                     </select>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label class="label">Cantidad en Stock *</label>
+                        <label class="label">Cantidad Disp. *</label>
                         <input type="number" id="new-stock" required min="0" value="1" class="field">
                     </div>
                     <div>
@@ -442,16 +431,59 @@
                         <input type="text" id="new-location" required class="field" placeholder="Estante Almacén A">
                     </div>
                 </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeAddPartModal()" class="btn btn-ghost">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar Pieza</button>
+                <div class="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeAddPartModal()" class="btn btn-ghost w-full sm:w-auto">Cancelar</button>
+                    <button type="submit" class="btn btn-primary w-full sm:w-auto">Guardar Pieza</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Editar Pieza Existente -->
+    <div id="edit-part-modal" class="fixed inset-0 modal-backdrop hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="modal-card">
+            <h3 class="modal-title">Editar Pieza HVAC</h3>
+            <form id="edit-part-form" onsubmit="saveEditedPart(event)" class="space-y-4">
+                <input type="hidden" id="edit-old-partnumber">
+                <div>
+                    <label class="label">Part Number *</label>
+                    <input type="text" id="edit-partnumber" required class="field">
+                </div>
+                <div>
+                    <label class="label">Nombre de la Pieza *</label>
+                    <input type="text" id="edit-name" required class="field">
+                </div>
+                <div>
+                    <label class="label">Categoría *</label>
+                    <select id="edit-category" required class="field">
+                        <option value="Compresor">Compresor</option>
+                        <option value="Motor">Motor</option>
+                        <option value="Capacitor">Capacitor</option>
+                        <option value="Refrigerante">Refrigerante</option>
+                        <option value="Filtro">Filtro</option>
+                        <option value="Eléctrico">Eléctrico</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="label">Cantidad Disp. *</label>
+                        <input type="number" id="edit-stock" required min="0" class="field">
+                    </div>
+                    <div>
+                        <label class="label">Ubicación *</label>
+                        <input type="text" id="edit-location" required class="field">
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeEditPartModal()" class="btn btn-ghost w-full sm:w-auto">Cancelar</button>
+                    <button type="submit" class="btn btn-primary w-full sm:w-auto">Actualizar Pieza</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- Modal Admin para Asignar Pieza a un Servicio Existente -->
-    <div id="assign-part-modal" class="fixed inset-0 modal-backdrop hidden flex items-center justify-center p-4">
+    <div id="assign-part-modal" class="fixed inset-0 modal-backdrop hidden flex items-center justify-center p-3 sm:p-4">
         <div class="modal-card space-y-4">
             <h3 class="modal-title" style="margin-bottom:0">Asignar Pieza a Servicio</h3>
             <p id="assign-part-info" class="card-sub"></p>
@@ -461,25 +493,23 @@
                     <!-- Poblado dinámicamente -->
                 </select>
             </div>
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="closeAssignModal()" class="btn btn-ghost">Cancelar</button>
-                <button type="button" onclick="confirmAssignPart()" class="btn btn-primary">Asignar y Deducir Stock</button>
+            <div class="flex flex-col sm:flex-row justify-end gap-2 pt-2">
+                <button type="button" onclick="closeAssignModal()" class="btn btn-ghost w-full sm:w-auto">Cancelar</button>
+                <button type="button" onclick="confirmAssignPart()" class="btn btn-primary w-full sm:w-auto">Asignar y Deducir Cantidad</button>
             </div>
         </div>
     </div>
 
-    <!-- Lógica JavaScript con Supabase y Escáner -->
+    <!-- Lógica JavaScript con Base de Datos en la Nube -->
     <script>
-        // CONFIGURACIÓN DE SUPABASE (Reemplace con sus credenciales de Supabase)
-        const SUPABASE_URL = 'https://bjrgayszkwhzpcdiatob.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqcmdheXN6a3doenBjZGlhdG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2OTU0NTQsImV4cCI6MjEwODI3MTQ1NH0.pFE0pl11-juj9t86nqGWUW_rOkMhqAZneboUakY2AVc';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // CONFIGURACIÓN DE ACCESO A DATOS EN LA NUBE
+        const CLOUD_URL = 'https://bjrgayszkwhzpcdiatob.supabase.co';
+        const CLOUD_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqcmdheXN6a3doenBjZGlhdG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI2OTU0NTQsImV4cCI6MjEwODI3MTQ1NH0.pFE0pl11-juj9t86nqGWUW_rOkMhqAZneboUakY2AVc';
+        const cloudClient = window.supabase.createClient(CLOUD_URL, CLOUD_ANON_KEY);
 
         let inventory = [];
         let serviceLogs = [];
         let activeAssignPartNumber = null;
-        let html5QrCode = null;
-        let isScannerActive = false;
 
         document.getElementById('service-date').valueAsDate = new Date();
 
@@ -499,8 +529,6 @@
 
             if (tabId === 'inventory') {
                 fetchInventory();
-            } else {
-                stopInventoryScanner();
             }
 
             if (tabId === 'logs') fetchServiceLogs();
@@ -556,81 +584,9 @@
         }
         function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
 
-        // Control del escáner en la pestaña de inventario
-        function toggleInventoryScanner() {
-            const container = document.getElementById('inventory-scanner-container');
-            const btn = document.getElementById('scanner-toggle-btn');
-            
-            if (!isScannerActive) {
-                container.classList.remove('hidden');
-                btn.innerHTML = '<i class="fa-solid fa-power-off"></i> Apagar Cámara';
-                btn.style.color = '#C9922E';
-                isScannerActive = true;
-                startInventoryScanner();
-            } else {
-                stopInventoryScanner();
-            }
-        }
-
-        function startInventoryScanner() {
-            try {
-                html5QrCode = new Html5Qrcode("reader");
-                html5QrCode.start(
-                    { facingMode: "environment" },
-                    { fps: 10, qrbox: { width: 250, height: 150 } },
-                    (decodedText) => {
-                        document.getElementById('inventory-scan-input').value = decodedText;
-                        processScannedPart();
-                    },
-                    (error) => {}
-                ).catch(err => console.log("Error al iniciar cámara:", err));
-            } catch (e) {
-                console.log("Excepción al iniciar escáner:", e);
-            }
-        }
-
-        function stopInventoryScanner() {
-            const container = document.getElementById('inventory-scanner-container');
-            const btn = document.getElementById('scanner-toggle-btn');
-            if (container) container.classList.add('hidden');
-            if (btn) {
-                btn.innerHTML = '<i class="fa-solid fa-power-off"></i> Activar Cámara';
-                btn.style.color = '';
-            }
-            isScannerActive = false;
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    html5QrCode = null;
-                }).catch(err => {
-                    html5QrCode = null;
-                });
-            }
-        }
-
-        function handleScanInput(e) {
-            if (e.key === 'Enter') {
-                processScannedPart();
-            }
-        }
-
-        function processScannedPart() {
-            const input = document.getElementById('inventory-scan-input');
-            const code = input.value.trim();
-            if (!code) return;
-
-            const part = inventory.find(p => p.partNumber.toLowerCase() === code.toLowerCase() || p.partName.toLowerCase().includes(code.toLowerCase()));
-            if (!part) {
-                alert(`No se encontró ninguna pieza con el código: "${code}". Verifique el inventario o agréguela.`);
-                return;
-            }
-
-            input.value = '';
-            openAssignModal(part.partNumber);
-        }
-
-        // Sincronización con Supabase: Cargar Inventario
+        // Cargar Inventario desde la Nube
         async function fetchInventory() {
-            const { data, error } = await supabaseClient.from('inventory').select('*');
+            const { data, error } = await cloudClient.from('inventory').select('*');
             if (error) {
                 console.error('Error al cargar inventario:', error);
                 return;
@@ -645,9 +601,9 @@
             renderInventory();
         }
 
-        // Sincronización con Supabase: Cargar Historial y Ubicación
+        // Cargar Historial y Ubicación desde la Nube
         async function fetchServiceLogs() {
-            const { data: logsData, error: logsError } = await supabaseClient
+            const { data: logsData, error: logsError } = await cloudClient
                 .from('service_logs')
                 .select('*, service_parts(part_number, part_name)')
                 .order('created_at', { ascending: false });
@@ -671,7 +627,7 @@
             renderLogs();
         }
 
-        // Guardar Registro Técnico con Ubicación en Supabase
+        // Guardar Registro Técnico con Ubicación en la Nube
         async function submitServiceLog(e) {
             e.preventDefault();
 
@@ -680,7 +636,7 @@
                 actionVal = document.getElementById('action-other-text').value.trim();
             }
 
-            const { data, error } = await supabaseClient
+            const { data, error } = await cloudClient
                 .from('service_logs')
                 .insert([{
                     service_date: document.getElementById('service-date').value,
@@ -694,11 +650,11 @@
                 .select();
 
             if (error) {
-                alert('Error al guardar el registro en Supabase (Asegúrese de haber agregado la columna "location" o ejecutado las políticas RLS): ' + error.message);
+                alert('Error al guardar el registro: ' + error.message);
                 return;
             }
 
-            alert('¡Registro de servicio técnico guardado exitosamente en Supabase!');
+            alert('¡Registro de servicio técnico guardado exitosamente!');
             document.getElementById('service-form').reset();
             document.getElementById('service-date').valueAsDate = new Date();
             checkActionOther('');
@@ -706,7 +662,7 @@
             await fetchServiceLogs();
         }
 
-        // Asignar Pieza a un Servicio en Supabase
+        // Asignar Pieza a un Servicio en la Nube
         function openAssignModal(partNumber) {
             if (serviceLogs.length === 0) {
                 alert('No hay registros de servicio en el historial para asignar esta pieza. Primero guarde un registro en la pestaña de Registrar Servicio.');
@@ -716,12 +672,12 @@
             if (!part) return;
 
             if (part.stockQuantity <= 0) {
-                alert('No hay stock disponible de esta pieza para asignar.');
+                alert('No hay cantidad disponible de esta pieza para asignar.');
                 return;
             }
 
             activeAssignPartNumber = partNumber;
-            document.getElementById('assign-part-info').textContent = `Pieza: ${part.partName} (Part Number: ${part.partNumber}) | Stock actual: ${part.stockQuantity}`;
+            document.getElementById('assign-part-info').textContent = `Pieza: ${part.partName} (Part Number: ${part.partNumber}) | Cantidad actual: ${part.stockQuantity}`;
             
             const select = document.getElementById('target-log-select');
             select.innerHTML = serviceLogs.map(l => `<option value="${l.id}">${l.date} - [${l.location}] Técnico: ${l.technician} (${l.actionDescription})</option>`).join('');
@@ -740,17 +696,17 @@
             if (!part) return;
             const newStock = Math.max(0, part.stockQuantity - 1);
 
-            const { error: stockError } = await supabaseClient
+            const { error: stockError } = await cloudClient
                 .from('inventory')
                 .update({ stock_quantity: newStock })
                 .eq('part_number', part.partNumber);
 
             if (stockError) {
-                alert('Error al actualizar el stock: ' + stockError.message);
+                alert('Error al actualizar la cantidad: ' + stockError.message);
                 return;
             }
 
-            const { error: partError } = await supabaseClient
+            const { error: partError } = await cloudClient
                 .from('service_parts')
                 .insert([{
                     service_log_id: targetLogId,
@@ -766,7 +722,77 @@
             closeAssignModal();
             await fetchInventory();
             await fetchServiceLogs();
-            alert(`¡Pieza "${part.partName}" asignada y stock actualizado en la nube!`);
+            alert(`¡Pieza "${part.partName}" asignada y cantidad actualizada exitosamente!`);
+        }
+
+        // Abrir modal de edición con los datos actuales
+        function openEditPartModal(partNumber) {
+            const part = inventory.find(p => p.partNumber === partNumber);
+            if (!part) return;
+
+            document.getElementById('edit-old-partnumber').value = part.partNumber;
+            document.getElementById('edit-partnumber').value = part.partNumber;
+            document.getElementById('edit-name').value = part.partName;
+            document.getElementById('edit-category').value = part.category;
+            document.getElementById('edit-stock').value = part.stockQuantity;
+            document.getElementById('edit-location').value = part.location;
+
+            document.getElementById('edit-part-modal').classList.remove('hidden');
+        }
+
+        function closeEditPartModal() {
+            document.getElementById('edit-part-modal').classList.add('hidden');
+        }
+
+        // Guardar cambios desde el modal de edición
+        async function saveEditedPart(e) {
+            e.preventDefault();
+            const oldPartNumber = document.getElementById('edit-old-partnumber').value;
+            const newPartNumber = document.getElementById('edit-partnumber').value.trim();
+            const partName = document.getElementById('edit-name').value.trim();
+            const category = document.getElementById('edit-category').value;
+            const stockQuantity = parseInt(document.getElementById('edit-stock').value) || 0;
+            const location = document.getElementById('edit-location').value.trim();
+
+            const { error } = await cloudClient
+                .from('inventory')
+                .update({
+                    part_number: newPartNumber,
+                    part_name: partName,
+                    category: category,
+                    stock_quantity: stockQuantity,
+                    location: location
+                })
+                .eq('part_number', oldPartNumber);
+
+            if (error) {
+                alert('Error al actualizar la pieza: ' + error.message);
+                return;
+            }
+
+            closeEditPartModal();
+            await fetchInventory();
+            alert('¡Pieza actualizada exitosamente!');
+        }
+
+        // Eliminar una pieza del inventario en la nube
+        async function deletePart(partNumber) {
+            if (!confirm(`¿Está seguro de que desea eliminar la pieza con Part Number "${partNumber}" del inventario?`)) {
+                return;
+            }
+
+            const { error } = await cloudClient
+                .from('inventory')
+                .delete()
+                .eq('part_number', partNumber);
+
+            if (error) {
+                alert('Error al eliminar la pieza: ' + error.message);
+                return;
+            }
+
+            alert('¡Pieza eliminada del inventario exitosamente!');
+            await fetchInventory();
         }
 
         function renderInventory() {
@@ -778,34 +804,17 @@
                     <td class="p-3"><span class="tag tag-neutral">${p.category}</span></td>
                     <td class="p-3 font-semibold">${p.stockQuantity}</td>
                     <td class="p-3" style="color:var(--ink-soft)">${p.location}</td>
-                    <td class="p-3 flex items-center gap-2">
+                    <td class="p-3 flex items-center gap-2 flex-wrap">
                         <button type="button" onclick="openAssignModal('${p.partNumber}')" class="btn btn-outline-gold">
-                            <i class="fa-solid fa-plus"></i> Añadir a Servicio
+                            Asignar
                         </button>
                         <div class="flex gap-1">
-                            <button onclick="adjustStockCloud('${p.partNumber}', 1)" class="btn-mini" title="Aumentar Stock">+</button>
-                            <button onclick="adjustStockCloud('${p.partNumber}', -1)" class="btn-mini" title="Reducir Stock">&minus;</button>
+                            <button onclick="openEditPartModal('${p.partNumber}')" class="btn-mini" title="Editar Pieza"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deletePart('${p.partNumber}')" class="btn-danger-mini" title="Eliminar Pieza"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     </td>
                 </tr>
             `).join('');
-        }
-
-        async function adjustStockCloud(partNumber, amount) {
-            const part = inventory.find(p => p.partNumber === partNumber);
-            if (!part) return;
-            const newStock = Math.max(0, part.stockQuantity + amount);
-
-            const { error } = await supabaseClient
-                .from('inventory')
-                .update({ stock_quantity: newStock })
-                .eq('part_number', partNumber);
-
-            if (error) {
-                alert('Error al ajustar stock: ' + error.message);
-                return;
-            }
-            await fetchInventory();
         }
 
         function renderLogs() {
@@ -852,7 +861,7 @@
                 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
                 <head><meta charset="utf-8"><title>Historial de Servicio HVAC</title></head>
                 <body style="font-family:Arial, sans-serif;">
-                <h2 style="color:#3A3A3C;">Historial y Reportes de Servicio HVAC (Supabase)</h2>
+                <h2 style="color:#3A3A3C;">Historial y Reportes de Servicio HVAC</h2>
                 <table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;font-size:12px;">
                     <tr style="background:#F3F3F0;">
                         <th>Fecha</th><th>Ubicación</th><th>Partes Asignadas (Part Number)</th><th>Técnico</th><th>Acción</th><th>Hallazgos</th><th>Comentarios</th>
@@ -913,7 +922,7 @@
 
             doc.setFontSize(16);
             doc.setTextColor(58, 58, 60);
-            doc.text("Historial de Servicio HVAC (Supabase)", 14, 20);
+            doc.text("Historial de Servicio HVAC", 14, 20);
 
             const tableData = serviceLogs.map(l => [
                 l.date,
@@ -948,16 +957,16 @@
                 location: document.getElementById('new-location').value
             };
 
-            const { error } = await supabaseClient.from('inventory').insert([newPart]);
+            const { error } = await cloudClient.from('inventory').insert([newPart]);
             if (error) {
-                alert('Error al agregar pieza a Supabase: ' + error.message);
+                alert('Error al agregar pieza: ' + error.message);
                 return;
             }
 
             closeAddPartModal();
             await fetchInventory();
             document.getElementById('new-part-form').reset();
-            alert('¡Nueva pieza agregada al inventario en la nube!');
+            alert('¡Nueva pieza agregada al inventario!');
         }
     </script>
 </body>
